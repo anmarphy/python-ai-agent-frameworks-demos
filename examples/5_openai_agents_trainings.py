@@ -25,20 +25,18 @@ else:
     raise ValueError(f"Unsupported API_HOST: {API_HOST}")
 
 @function_tool
-def aerialist(element: str) -> str:
-    if element == 'silks':
-        return {
-        "element": element,
-        "teacher": "Valentina",
-        "level": "Beginner",
-        "place": "Liberte", 
-        "duration": "8 weeks",  
-        "description": f"{element} classes focus on building strength, flexibility, and foundational skills for aerial arts.",
+def aerialist(city: str) -> str:
+    return {
+        "city": city,
+        "Studio": "Liberte",
+        "elements": "Hoop and Silks",
+        "times": "Tuesdays and Thursdays at 6 PM",
+        "instructor": "Maria Gonzalez",
     }
 
 agent = Agent(
     name="Aerialist agent",
-    instructions="You can only provide aerial training information.",
+    instructions="Return the Studio name and elements for a given city.",
     tools=[aerialist],
 )
 
@@ -63,9 +61,11 @@ triage_agent = Agent(
     model=OpenAIChatCompletionsModel(model=MODEL_NAME, openai_client=client),
 )
 
+#input_user = "Cuales son las clases en Bogota de elementos aereos?"
+input_user = "In Bogotá, what are the classes for aerial elements?"
 
 async def main():
-    result = await Runner.run(triage_agent, input="I want to learn silks. Can you give me some information about the classes?")
+    result = await Runner.run(triage_agent, input=input_user)
     print(result.final_output)
 
     if async_credential:
