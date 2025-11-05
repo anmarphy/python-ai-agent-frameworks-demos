@@ -114,4 +114,7 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except InputGuardrailTripwireTriggered as e:
+        print(f"Off-topic guardrail tripped")
