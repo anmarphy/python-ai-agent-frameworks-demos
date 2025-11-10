@@ -1,18 +1,21 @@
 import logging
 import os
-import random
 from datetime import datetime
 
-import azure.identity
 from dotenv import load_dotenv
-from langchain.agents import create_agent
-from langchain_core.tools import tool
-from langchain_openai import ChatOpenAI
 from rich import print
 from rich.logging import RichHandler
 
-# Setup logging with rich
-logging.basicConfig(level=logging.WARNING, format="%(message)s", datefmt="[%X]", handlers=[RichHandler()])
+from langchain.agents import create_agent
+from langchain_core.tools import tool
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage
+
+
+logging.basicConfig(level=logging.WARNING, 
+                    format="%(message)s", 
+                    datefmt="[%X]", 
+                    handlers=[RichHandler()])
 logger = logging.getLogger("aerialist_advisor")
 
 load_dotenv(override=True)
@@ -55,15 +58,60 @@ def get_current_date() -> str:
     return datetime.now().strftime("%Y-%m-%d")
 
 
-agent = create_agent(
+classes_agent = create_agent(
     model=model,
-    system_prompt="You help users to get the information about aerial classes. Return the Studio name and the information of the classes for a given city in bullets. Use the current date to suggest upcoming classes.",
+    system_prompt= ("You help users to get the information about aerial classes. "
+                    "Return the Studio name and the information of the classes for a given city in bullets. "
+                    "Use the current date to suggest upcoming classes."
+                    ),
     tools=[get_schedule, get_current_date],
+)
+
+@tool
+def information_classes(query: str) -> str:
+    """Plan a weekend based on user query and return the final response."""
+    logger.info("Tool: classes_agent invoked")
+    response = classes_agent.invoke({"messages": [HumanMessage(content=query)]})
+    final = response["messages"][-1].content
+    return final
+
+spanish_agent = create_agent(
+    system_prompt="You only speak Spanish. Return the information in bullets.",
+    tools=[information_classes],
+    model=model,
+)
+
+@tool
+def information_spanish(query: str) -> str:
+    """Process and retrieve the information in Spanish."""
+    logger.info("Tool: spanish_agent invoked")
+    response = spanish_agent.invoke({"messages": [HumanMessage(content=query)]})
+    final = response["messages"][-1].content
+    return final
+
+english_agent = create_agent(
+    system_prompt="You only speak English. Return the information in bullets.",
+    tools=[information_classes],
+    model=model,
+)
+
+@tool
+def information_english(query: str) -> str:
+    """Process and retrieve the information in English."""
+    logger.info("Tool: spanish_agent invoked")
+    response = spanish_agent.invoke({"messages": [HumanMessage(content=query)]})
+    final = response["messages"][-1].content
+    return final
+
+supervisor_agent = create_agent(
+    model=model,
+    system_prompt=("Retrieve information about aerial classes based on user queries. " "Use the tool to get the information and return it to the user."),
+    tools=[information_spanish, information_english],
 )
 
 
 def main():
-    response = agent.invoke({"messages": [{"role": "user", "content": "hii what aerial classes can I do in Bogota?"}]})
+    response = supervisor_agent.invoke({"messages": [{"role": "user", "content": "hii what aerial classes can I do in Bogota?"}]})
     latest_message = response["messages"][-1]
     print(latest_message.content)
 
